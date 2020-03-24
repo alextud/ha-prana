@@ -1,6 +1,6 @@
 """Support for Prana fan."""
 
-from . import prana, DOMAIN, CONF_DEVICES, CLIENT, CONFIG
+from . import prana, DOMAIN, CONF_DEVICES, CONF_NAME, CLIENT, CONFIG, SIGNAL_UPDATE_PRANA
 
 from datetime import timedelta
 import logging
@@ -13,31 +13,19 @@ from homeassistant.components.fan import (
     SUPPORT_DIRECTION,
     FanEntity,
 )
-from homeassistant.const import (
-    CONF_FORCE_UPDATE,
-    CONF_MAC,
-    CONF_MONITORED_CONDITIONS,
-    CONF_NAME,
-    CONF_SCAN_INTERVAL,
-    EVENT_HOMEASSISTANT_START,
-)
-
 
 from homeassistant.const import STATE_OFF
 from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 _LOGGER = logging.getLogger(__name__)
 
 SPEED_AUTO = "auto"
 FAN_SPEEDS = [STATE_OFF, SPEED_AUTO, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-SCAN_INTERVAL = timedelta(seconds=60)
+# SCAN_INTERVAL = timedelta(seconds=60)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the PRANA device class for the hass platform."""
-    # config.get(CONF_SCAN_INTERVAL, SCAN_INTERVAL).total_seconds()
-    # device = prana.Prana(config.get(CONF_MAC))
-    # async_add_entities([PranaFan(device, "Prana")], update_before_add=True)
-
     entities = []
     for device in hass.data[DOMAIN][CONF_DEVICES]:
         name = device[CONFIG].get(CONF_NAME)
@@ -71,6 +59,11 @@ class PranaFan(FanEntity):
         return self.device.isOn
 
     @property
+    def available(self):
+        """Return state of the fan."""
+        return self.device.lastRead != None
+
+    @property
     def device_state_attributes(self):
         """Provide attributes for display on device card."""
         attributes = { 
@@ -85,13 +78,13 @@ class PranaFan(FanEntity):
             "speed out": self.device.speedOut,
             "air in on": self.device.isAirInOn,
             "air out on": self.device.isAirOutOn,
+            "last_updated": self.device.lastRead,
         }
         return attributes
 
     @property
     def speed(self) -> str:
         """Return the current speed."""
-        # return self._int_to_speed(self.device.parameter_value("speed"))
         speed = self.device.speed
         return str(speed)
 
@@ -152,10 +145,19 @@ class PranaFan(FanEntity):
         else:
             return "reverse & forward"
 
-    def update(self):
-        """Update state."""
-        _LOGGER.debug("Updating fan state")
-        self.device.getStatusDetails()
+    @property
+    def should_poll(self):
+        """Do not poll."""
+        return False
+
+    async def async_added_to_hass(self):
+        """Call to update fan."""
+        async_dispatcher_connect(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac, self._update_callback)
+
+    @callback
+    def _update_callback(self):
+        """Call update method."""
+        self.async_schedule_update_ha_state(True)
 
     # @staticmethod
     # def _int_to_speed(speed: int):

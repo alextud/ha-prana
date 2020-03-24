@@ -9,7 +9,7 @@ import threading
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_RETRY_COUNT = 3
+DEFAULT_RETRY_COUNT = 2
 DEFAULT_RETRY_TIMEOUT = .2
 
 HANDLE = '0000cccc-0000-1000-8000-00805f9b34fb'
@@ -55,7 +55,7 @@ class Prana (btle.DefaultDelegate):
         self.isThawOn = None
         self.isAirInOn = None
         self.isAirOutOn = None
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
     def handleNotification (self, cHandle, data):
         #print (data)
@@ -138,20 +138,21 @@ class Prana (btle.DefaultDelegate):
         return writeResult
 
     def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
-        with self.lock:
-            sendSuccess = False
-            _LOGGER.debug("Sending command to prana %s", command)
-            try:
-                self.connect()
-                isGetStatus = command == deviceStatus
-                sendSuccess = self.writeKey(command, wait = isGetStatus)
-                if not isGetStatus: #get status
-                    self.writeKey(deviceStatus, wait = True)
+        sendSuccess = False
+        _LOGGER.debug("Sending command to prana %s", command)
+        self.lock.acquire()
+        try:
+            self.connect()
+            isGetStatus = command == deviceStatus
+            sendSuccess = self.writeKey(command, wait = isGetStatus)
+            if not isGetStatus: #get status
+                self.writeKey(deviceStatus, wait = True)
 
-            except btle.BTLEException:
-                _LOGGER.warning("Error talking to prana.", exc_info=True)
-            finally:
-                self.disconnect()
+        except:
+            _LOGGER.warning("Error talking to prana.", exc_info=True)
+        finally:
+            self.disconnect()
+            self.lock.release()
 
         if sendSuccess:
             return True

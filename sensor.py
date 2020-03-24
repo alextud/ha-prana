@@ -2,51 +2,15 @@
 from datetime import timedelta
 import logging
 
-from . import prana, DOMAIN, CONF_DEVICES, CLIENT, CONFIG
-import voluptuous as vol
+from . import prana, DOMAIN, CONF_DEVICES, CONF_NAME, CONF_MEDIAN, CLIENT, CONFIG, SIGNAL_UPDATE_PRANA, SENSOR_TYPES, CONF_MONITORED_CONDITIONS
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (
-    CONF_MAC,
-    CONF_MONITORED_CONDITIONS,
-    CONF_NAME,
-    CONF_SCAN_INTERVAL,
-    EVENT_HOMEASSISTANT_START,
-)
 from homeassistant.core import callback
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
-
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_MEDIAN = "median"
-
-DEFAULT_MEDIAN = 3
-DEFAULT_NAME = "Prana"
-
-SCAN_INTERVAL = timedelta(seconds=300)
-
-# Sensor types are defined like: Name, units, icon
-SENSOR_TYPES = {
-    "voc": ["VOC", "ppb", "mdi:gauge"],
-    "co2": ["CO2", "ppm", "mdi:gauge"],
-    
-    # "temperature": ["Temperature", "°C", "mdi:thermometer"],
-    # "humidity": ["Humidity", "%", "mdi:water-percent"],
-    # "speed": ["Speed", None, "mdi:gauge"],
-}
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_MAC): cv.string,
-        vol.Optional(CONF_MONITORED_CONDITIONS, default=list(SENSOR_TYPES)): vol.All(
-            cv.ensure_list, [vol.In(SENSOR_TYPES)]
-        ),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_MEDIAN, default=DEFAULT_MEDIAN): cv.positive_int,
-    }
-)
+# SCAN_INTERVAL = timedelta(seconds=300)
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -69,28 +33,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 PranaSensor(device[CLIENT], parameter, name, unit, icon, median)
             )
 
-    async_add_entities(entities, True)
-
-    # config.get(CONF_SCAN_INTERVAL, SCAN_INTERVAL).total_seconds()
-    # device = prana.Prana(config.get(CONF_MAC))
-    # median = config.get(CONF_MEDIAN)
-
-    # devs = []
-
-    # for parameter in config[CONF_MONITORED_CONDITIONS]:
-    #     name = SENSOR_TYPES[parameter][0]
-    #     unit = SENSOR_TYPES[parameter][1]
-    #     icon = SENSOR_TYPES[parameter][2]
-
-    #     prefix = config.get(CONF_NAME)
-    #     if prefix:
-    #         name = f"{prefix} {name}"
-
-    #     devs.append(
-    #         PranaSensor(device, parameter, name, unit, icon, median)
-    #     )
-
-    # async_add_entities(devs)
+    async_add_entities(entities)
 
 
 class PranaSensor(Entity):
@@ -110,15 +53,6 @@ class PranaSensor(Entity):
         # single outliers, while  median of 5 will filter double outliers
         # Use median_count = 1 if no filtering is required.
         self.median_count = median
-
-    # async def async_added_to_hass(self):
-    #     """Set initial state."""
-
-    #     @callback
-    #     def on_startup(_):
-    #         self.async_schedule_update_ha_state(True)
-
-    #     self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, on_startup)
 
     @property
     def name(self):
@@ -186,3 +120,17 @@ class PranaSensor(Entity):
             self._state = self.data[0]
         else:
             _LOGGER.debug("Not yet enough data for median calculation")
+
+    @property
+    def should_poll(self):
+        """Do not poll."""
+        return False
+
+    async def async_added_to_hass(self):
+        """Call to update fan."""
+        async_dispatcher_connect(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac, self._update_callback)
+
+    @callback
+    def _update_callback(self):
+        """Call update method."""
+        self.async_schedule_update_ha_state(True)
