@@ -1,5 +1,5 @@
 # ha-prana
-Prana recuperators (fan) for Home Assistant
+Prana recuperators (fan) for Home Assistant over bluetooth
 
 
 ## Installation
@@ -14,6 +14,7 @@ Prana recuperators (fan) for Home Assistant
 ### Basic
 ```
 prana:
+  scan_interval: 60 # refresh data in x seconds
   devices:
   - mac: 'XX:XX:XX:XX:XX:XX'
 ```
@@ -30,6 +31,18 @@ prana:
 ## Available sensors & switches
     - co2
     - voc
+    
+## Complete
+```
+prana:
+  scan_interval: 60 # refresh data in x seconds
+  devices:
+  - mac: 'XX:XX:XX:XX:XX:XX'
+    name: 'Prana living room'
+    monitored_conditions:
+      - co2
+      - voc
+```
 
 ## Debugging problems
 
@@ -39,3 +52,10 @@ logger:
   logs:
     custom_components.prana: debug
 ```
+
+## Notes
+ - password is not supported
+ - tested only on prana-150 
+ - device name 
+ - temperatures, humidity and air pressure aren't supported
+ 
