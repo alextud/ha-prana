@@ -1,6 +1,10 @@
 # ha-prana
 Prana recuperators (fan) for Home Assistant over bluetooth
 
+## Find mac address of your device on linux
+```
+sudo hcitool lescan
+```
 
 ## Installation
 
