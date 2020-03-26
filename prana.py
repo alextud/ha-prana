@@ -109,7 +109,7 @@ class Prana (btle.DefaultDelegate):
             desc.write(binascii.a2b_hex('0100')) #subscribe to notifications
             self.characteristics = characteristics
 
-        except btle.BTLEException:
+        except:
             _LOGGER.debug("Failed connecting to Prana.", exc_info=True)
             self.device = None
             raise
@@ -120,27 +120,24 @@ class Prana (btle.DefaultDelegate):
         _LOGGER.debug("Disconnecting")
         try:
             self.device.disconnect()
-        except btle.BTLEException:
+        except:
             _LOGGER.warning("Error disconnecting from Prana.", exc_info=True)
         finally:
             self.device = None
             self.characteristics = None
 
-    def writeKey(self, key, wait, timeout = 0.5) -> bool:
+    def writeKey(self, key, wait, timeout = 0.6) -> bool:
         writeResult = self.characteristics.write(binascii.a2b_hex(key), withResponse = True)
-        while wait:
-            if self.device.waitForNotifications(timeout):
-                break
 
-            writeResult = self.characteristics.write(binascii.a2b_hex(key), withResponse = True)
-            print(response, "Waiting...")
+        if writeResult and wait:
+            self.device.waitForNotifications(timeout)
 
         return writeResult
 
     def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
         sendSuccess = False
         _LOGGER.debug("Sending command to prana %s", command)
-        self.lock.acquire()
+        
         try:
             self.connect()
             isGetStatus = command == deviceStatus
@@ -152,7 +149,6 @@ class Prana (btle.DefaultDelegate):
             _LOGGER.warning("Error talking to prana.", exc_info=True)
         finally:
             self.disconnect()
-            self.lock.release()
 
         if sendSuccess:
             return True
