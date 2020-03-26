@@ -1,0 +1,18 @@
+In terminal you can test connection to your bluetooth device by running 1 of the following examples:
+
+
+EX 1:
+sudo bluetoothctl 
+connect MAC_ADDRESS
+menu gatt
+select-attribute 0000cccc-0000-1000-8000-00805f9b34fb
+notify on
+write "0xBE 0xEF 0x05 0x01 0x00 0x00 0x00 0x00 0x5A"
+
+
+EX 2:
+gatttool -b MAC_ADDRESS -I
+connect
+char-write-req 0x000f 0100
+mtu 200
+char-write-req 0x000e BEEF0501000000005A
