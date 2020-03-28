@@ -161,8 +161,8 @@ class Prana (btle.DefaultDelegate):
         return self.sendCommand(command, retry - 1)
 
     def sensorValue(self, name): 
-        if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
-            self.sendCommand(deviceStatus)
+        # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
+        #     self.sendCommand(deviceStatus)
 
         values = { 
             "co2":      self.co2, 

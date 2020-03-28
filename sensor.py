@@ -85,13 +85,7 @@ class PranaSensor(Entity):
 
         This uses a rolling median over 3 values to filter out outliers.
         """
-        try:
-            _LOGGER.debug("Polling data for %s", self.name)
-            data = self.device.sensorValue(self.parameter)
-        except (OSError) as err:
-            _LOGGER.info("Polling error %s: %s", type(err).__name__, err)
-            self._available = False
-            return
+        data = self.device.sensorValue(self.parameter)
 
         if data is not None:
             _LOGGER.debug("%s = %s", self.name, data)
@@ -107,16 +101,15 @@ class PranaSensor(Entity):
                 self._state = None
             return
 
-        _LOGGER.debug("Data collected: %s", self.data)
         if len(self.data) > self.median_count:
             self.data = self.data[1:]
 
         if len(self.data) == self.median_count:
             median = sorted(self.data)[int((self.median_count - 1) / 2)]
-            _LOGGER.debug("Median is: %s", median)
+            # _LOGGER.debug("Median is: %s", median)
             self._state = median
         elif self._state is None:
-            _LOGGER.debug("Set initial state")
+            # _LOGGER.debug("Set initial state")
             self._state = self.data[0]
         else:
             _LOGGER.debug("Not yet enough data for median calculation")

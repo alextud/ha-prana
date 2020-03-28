@@ -19,7 +19,7 @@ SENSOR_TYPES = {
 
 
 SCAN_INTERVAL = timedelta(seconds=60)
-DEFAULT_MEDIAN = 3
+DEFAULT_MEDIAN = 1
 CONF_MEDIAN = "median"
 SIGNAL_UPDATE_PRANA = "prana_update"
 
