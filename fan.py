@@ -69,15 +69,15 @@ class PranaFan(FanEntity):
         attributes = { 
             "co2": self.device.co2,
             "voc": self.device.voc,
-            "auto mode": self.device.isAutoMode,
-            "night mode": self.device.isNightMode,
-            "thaw on": self.device.isThawOn,
-            "heater on": self.device.isHeaterOn,
-            "speed in & out": self.device.speedInOut,
-            "speed in": self.device.speedIn,
-            "speed out": self.device.speedOut,
-            "air in on": self.device.isAirInOn,
-            "air out on": self.device.isAirOutOn,
+            "auto_mode": self.device.isAutoMode,
+            "night_mode": self.device.isNightMode,
+            "thaw_on": self.device.isThawOn,
+            "heater_on": self.device.isHeaterOn,
+            "speed_in&out": self.device.speedInOut,
+            "speed_in": self.device.speedIn,
+            "speed_out": self.device.speedOut,
+            "air_in_on": self.device.isAirInOn,
+            "air_out_on": self.device.isAirOutOn,
             "last_updated": self.device.lastRead,
         }
         return attributes
@@ -113,10 +113,11 @@ class PranaFan(FanEntity):
         if speed == STATE_OFF:
             self.device.powerOff()
         elif speed == SPEED_AUTO:
-            self.device.toogleAuto()
+            self.device.setAutoMode()
         else:
             self.device.setSpeed(int(speed))
-
+        
+        self.async_schedule_update_ha_state(True)
 
 
 
@@ -133,6 +134,8 @@ class PranaFan(FanEntity):
 
             self.device.toogleAirInOff()
 
+        self.async_schedule_update_ha_state(True)
+
     @property
     def current_direction(self) -> str:
         """Fan direction."""
@@ -144,6 +147,8 @@ class PranaFan(FanEntity):
             return "reverse"
         else:
             return "reverse & forward"
+
+        self.async_schedule_update_ha_state(True)
 
     @property
     def should_poll(self):

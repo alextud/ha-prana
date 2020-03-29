@@ -178,17 +178,18 @@ class Prana (btle.DefaultDelegate):
     def powerOff(self): 
         self.sendCommand(powerOff)
 
-    def toogleAuto(self): 
+    def toogleAutoMode(self): 
         self.sendCommand(autoMode)
+    def setAutoMode(self):
+        if not self.isAutoMode:
+            self.sendCommand(autoMode)
 
     def toogleAirInOff(self): 
         self.sendCommand(airInOff)
     def toogleAirOutOff(self): 
         self.sendCommand(airOutOff)
 
-    def setSpeed(self, speed): 
-        self.sendCommand(deviceStatus)
-
+    def setSpeed(self, speed):
         up = speedUp
         down = speedDown
         if not self.isAirOutOn:
@@ -204,3 +205,5 @@ class Prana (btle.DefaultDelegate):
         elif (speed < self.speed):
             self.sendCommand(down)
             self.setSpeed(speed)
+        elif speed == self.speed and self.isAutoMode:
+            self.toogleAutoMode()
