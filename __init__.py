@@ -14,7 +14,7 @@ SENSOR_TYPES = {
     
     # "temperature": ["Temperature", "°C", "mdi:thermometer"],
     # "humidity": ["Humidity", "%", "mdi:water-percent"],
-    # "speed": ["Speed", None, "mdi:gauge"],
+    "speed": ["Speed", None, "mdi:gauge"],
 }
 
 

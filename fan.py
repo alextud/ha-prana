@@ -76,8 +76,8 @@ class PranaFan(FanEntity):
             "speed_in&out": self.device.speedInOut,
             "speed_in": self.device.speedIn,
             "speed_out": self.device.speedOut,
-            "air_in_on": self.device.isAirInOn,
-            "air_out_on": self.device.isAirOutOn,
+            "air_in": self.device.isAirInOn,
+            "air_out": self.device.isAirOutOn,
             "last_updated": self.device.lastRead,
         }
         return attributes

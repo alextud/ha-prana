@@ -89,72 +89,46 @@ class Prana (btle.DefaultDelegate):
         _LOGGER.debug("speed: %d CO2: %d VOC: %d, AUTO_MODE: %d, HEATER: %d, THAW: %d", self.speed, self.co2, self.voc, self.isAutoMode, self.isHeaterOn, self.isThawOn)
         self.lastRead = datetime.now()
 
+    def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
+        sendSuccess = False
+        _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
-    def connect(self) -> None:
-        if self.device is not None:
-            return
+        self.lock.acquire()
         try:
-            _LOGGER.debug("Connecting to Prana... %s", self.mac)
-            self.device = btle.Peripheral(self.mac)
-            self.device.setDelegate(self)
-            self.device.setMTU(200) #increase MTU
+            _LOGGER.debug("Connecting to Prana...",)
+            device = btle.Peripheral(self.mac)
+            device.setDelegate(self)
+            device.setMTU(200) #increase MTU
 
-            _LOGGER.debug("Connected to Prana.")
-
-            service = self.device.getServiceByUUID(UUID)
+            service = device.getServiceByUUID(UUID)
             characteristics = service.getCharacteristics(HANDLE)[0]
             # print(characteristics.uuid, characteristics.propertiesToString(), characteristics.getHandle())
 
             desc = characteristics.getDescriptors(forUUID = 0x2902)[0]
             desc.write(binascii.a2b_hex('0100')) #subscribe to notifications
-            self.characteristics = characteristics
+            characteristics = characteristics
+            _LOGGER.debug("Connected to Prana.")
 
-        except:
-            _LOGGER.debug("Failed connecting to Prana.", exc_info=True)
-            self.device = None
-            raise
+            writeResult = characteristics.write(binascii.a2b_hex(command), withResponse = True)
+            sendSuccess = writeResult != None
 
-    def disconnect(self) -> None:
-        if self.device is None:
-            return
-        _LOGGER.debug("Disconnecting")
-        try:
-            self.device.disconnect()
-        except:
-            _LOGGER.warning("Error disconnecting from Prana.", exc_info=True)
-        finally:
-            self.device = None
-            self.characteristics = None
+            if command != deviceStatus: # trigger a notifications
+                characteristics.write(binascii.a2b_hex(deviceStatus), withResponse = True)
 
-    def writeKey(self, key, wait, timeout = 0.6) -> bool:
-        writeResult = self.characteristics.write(binascii.a2b_hex(key), withResponse = True)
-
-        if writeResult and wait:
-            self.device.waitForNotifications(timeout)
-
-        return writeResult
-
-    def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
-        sendSuccess = False
-        _LOGGER.debug("Sending command to prana %s", command)
-        
-        try:
-            self.connect()
-            isGetStatus = command == deviceStatus
-            sendSuccess = self.writeKey(command, wait = isGetStatus)
-            if not isGetStatus: #get status
-                self.writeKey(deviceStatus, wait = True)
+            device.waitForNotifications(0.6)
+            device.disconnect()
 
         except:
             _LOGGER.warning("Error talking to prana.", exc_info=True)
         finally:
-            self.disconnect()
+            self.lock.release()
 
         if sendSuccess:
             return True
         if retry < 1:
             _LOGGER.error("Prana communication failed. Stopping trying.", exc_info=True)
             return False
+
         _LOGGER.warning("Cannot connect to Prana. Retrying (remaining: %d)...", retry - 1)
         time.sleep(DEFAULT_RETRY_TIMEOUT)
 
@@ -205,5 +179,8 @@ class Prana (btle.DefaultDelegate):
         elif (speed < self.speed):
             self.sendCommand(down)
             self.setSpeed(speed)
-        elif speed == self.speed and self.isAutoMode:
+        elif speed == self.speed and self.isAutoMode: # disable auto mode
             self.toogleAutoMode()
+            self.setSpeed(speed)
+        elif speed == self.speed and self.isHeaterOn: # disable heater
+            self.sendCommand(heater)
