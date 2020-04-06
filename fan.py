@@ -86,7 +86,10 @@ class PranaFan(FanEntity):
     def speed(self) -> str:
         """Return the current speed."""
         speed = self.device.speed
-        return str(speed)
+        if speed == 0:
+            return STATE_OFF
+        else:
+            return str(speed)
 
     @property
     def speed_list(self) -> list:

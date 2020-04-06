@@ -38,9 +38,7 @@ class Prana (btle.DefaultDelegate):
 
     def __init__(self, mac):
         self.mac = mac
-        self.device = None
         self.lastRead = None
-        self.characteristics = None
         self.speed = None #calculated
         self.speedInOut = None
         self.speedIn = None
@@ -55,7 +53,6 @@ class Prana (btle.DefaultDelegate):
         self.isThawOn = None
         self.isAirInOn = None
         self.isAirOutOn = None
-        self.lock = threading.RLock()
 
     def handleNotification (self, cHandle, data):
         #print (data)
@@ -93,7 +90,6 @@ class Prana (btle.DefaultDelegate):
         sendSuccess = False
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
-        self.lock.acquire()
         try:
             _LOGGER.debug("Connecting to Prana...",)
             device = btle.Peripheral(self.mac)
@@ -121,7 +117,7 @@ class Prana (btle.DefaultDelegate):
         except:
             _LOGGER.warning("Error talking to prana.", exc_info=True)
         finally:
-            self.lock.release()
+        	pass
 
         if sendSuccess:
             return True
