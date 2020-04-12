@@ -4,6 +4,7 @@ from . import prana
 import voluptuous as vol
 import logging
 from datetime import timedelta
+import threading
 
 DOMAIN = "prana"
 CLIENT = "client"
@@ -82,7 +83,7 @@ def setup(hass, config):
     for device in prana_data[CONF_DEVICES]:
         prana_client = device[CLIENT]
 
-    def poll_device_update(event_time):
+    def device_update():
         """Update Prana device."""
         for device in prana_data[CONF_DEVICES]:
             prana_client = device[CLIENT]
@@ -94,7 +95,14 @@ def setup(hass, config):
             else:
                 _LOGGER.debug("Update failed...")
 
-    track_time_interval(hass, poll_device_update, timedelta(seconds=scan_interval))
-    call_later(hass, 0, poll_device_update) #trigger update now
+    def poll_devices(time):
+        # use threads as sometimes device will hang on disconnect (maybe some issue on bluepy)
+        thread = threading.Thread(name='PranaWorker', target = device_update)
+        thread.daemon = True
+        thread.start()
+        call_later(hass, scan_interval, poll_devices)
+
+    # track_time_interval(hass, device_update, timedelta(seconds=scan_interval))
+    call_later(hass, 0, poll_devices) #trigger update now
 
     return True

@@ -16,7 +16,7 @@ from homeassistant.components.fan import (
 
 from homeassistant.const import STATE_OFF
 from homeassistant.core import callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import dispatcher_send, async_dispatcher_connect
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class PranaFan(FanEntity):
         else:
             self.device.setSpeed(int(speed))
         
-        self.async_schedule_update_ha_state(True)
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
 
 
@@ -137,7 +137,7 @@ class PranaFan(FanEntity):
 
             self.device.toogleAirInOff()
 
-        self.async_schedule_update_ha_state(True)
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
     @property
     def current_direction(self) -> str:
@@ -150,8 +150,6 @@ class PranaFan(FanEntity):
             return "reverse"
         else:
             return "reverse & forward"
-
-        self.async_schedule_update_ha_state(True)
 
     @property
     def should_poll(self):

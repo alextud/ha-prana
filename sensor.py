@@ -79,7 +79,7 @@ class PranaSensor(Entity):
         """Return the icon of the sensor."""
         return self._icon
 
-    def update(self):
+    async def async_update(self):
         """
         Update current conditions.
 
