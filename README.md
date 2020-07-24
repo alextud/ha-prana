@@ -60,6 +60,5 @@ logger:
 ## Notes
  - password is not supported
  - tested only on prana-150 
- - device name 
- - temperatures, humidity and air pressure aren't supported
+ - device name, temperatures, humidity and air pressure aren't supported
  

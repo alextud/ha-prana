@@ -2,7 +2,7 @@
 
 from . import prana, DOMAIN, CONF_DEVICES, CONF_NAME, CLIENT, CONFIG, SIGNAL_UPDATE_PRANA
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from homeassistant.components.fan import (
     SPEED_HIGH,
@@ -61,7 +61,7 @@ class PranaFan(FanEntity):
     @property
     def available(self):
         """Return state of the fan."""
-        return self.device.lastRead != None
+        return self.device.lastRead != None and (self.device.lastRead > datetime.now() - timedelta(minutes=5))
 
     @property
     def device_state_attributes(self):

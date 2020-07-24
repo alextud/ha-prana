@@ -56,11 +56,16 @@ class Prana (btle.DefaultDelegate):
 
     def handleNotification (self, cHandle, data):
         #print (data)
+        voc = int(struct.unpack_from(">h", data, 63)[0] & 0b0011_1111_1111_1111)
+        co2 = int(struct.unpack_from(">h", data, 61)[0] & 0b0011_1111_1111_1111)
+        if (voc > 10000 or co2 > 10000):
+        	return #ingore invalid data
+
+        self.voc = voc
+        self.co2 = co2
         self.speedInOut = int(data[26] / 10)
         self.speedIn = int(data[30] / 10)
         self.speedOut = int(data[34] / 10)
-        self.co2 = int(struct.unpack_from(">h", data, 61)[0] & 0b0011_1111_1111_1111)
-        self.voc = int(struct.unpack_from(">h", data, 63)[0] & 0b0011_1111_1111_1111)
         self.isAutoMode = bool(data[20])
         self.isNightMode = bool(data[16])
         self.isSpeedLocked = bool(data[22])
@@ -115,7 +120,7 @@ class Prana (btle.DefaultDelegate):
             device.disconnect()
 
         except:
-            _LOGGER.warning("Error talking to prana.", exc_info=True)
+            _LOGGER.debug("Error talking to prana.", exc_info=True)
         finally:
         	pass
 
@@ -125,7 +130,7 @@ class Prana (btle.DefaultDelegate):
             _LOGGER.error("Prana communication failed. Stopping trying.", exc_info=True)
             return False
 
-        _LOGGER.warning("Cannot connect to Prana. Retrying (remaining: %d)...", retry - 1)
+        _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry - 1)
         time.sleep(DEFAULT_RETRY_TIMEOUT)
 
         return self.sendCommand(command, retry - 1)
