@@ -1,6 +1,14 @@
 # ha-prana
 Prana recuperators (fan) for Home Assistant over bluetooth
 
+![](../master/PR_PLUS_150.png)
+
+Supported operations:
+  - control speed (1 - 10)
+  - auto / night / heat mode
+  - read sensor values: VOC, CO2
+  - air direction
+  
 ## Find mac address of your device on linux
 ```
 sudo hcitool lescan
@@ -59,6 +67,6 @@ logger:
 
 ## Notes
  - password is not supported
- - tested only on prana-150 
- - device name, temperatures, humidity and air pressure aren't supported
+ - tested only on prana-150
+ - reading device name, temperatures, humidity and air pressure aren't yet supported
  
