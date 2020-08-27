@@ -104,12 +104,15 @@ class PranaFan(FanEntity):
     def turn_on(self, speed: str = None, **kwargs) -> None:
         """Turn on the entity."""
         if speed is None:
-            speed = SPEED_AUTO
-        self.set_speed(speed)
+            self.device.powerOn()
+        else:
+            self.set_speed(speed)
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
     def turn_off(self, **kwargs) -> None:
         """Turn off the entity."""
         self.set_speed(SPEED_OFF)
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
     def set_speed(self, speed: str) -> None:
         """Set the speed of the fan."""

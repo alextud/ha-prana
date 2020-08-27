@@ -18,11 +18,13 @@ UUID = '0000baba-0000-1000-8000-00805f9b34fb'
 deviceStatus = 'BEEF0501000000005A'
 deviceDetails = 'BEEF0502000000005A'
 powerOff     = "BEEF0401"
+luminosity   = "BEEF0402"
 heater       = "BEEF0405"
 nightMode    = "BEEF0406"
 maxSpeed     = "BEEF0407"
 airOutOff    = "BEEF0410"
 speedLocked  = "BEEF0409"
+powerOn      = "BEEF040A"
 speedDown    = "BEEF040B"
 speedUp      = "BEEF040C"
 airInOff     = "BEEF040D"
@@ -130,17 +132,17 @@ class Prana (btle.DefaultDelegate):
             _LOGGER.error("Prana communication failed. Stopping trying.", exc_info=True)
             return False
 
-        _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry - 1)
+        _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry)
         time.sleep(DEFAULT_RETRY_TIMEOUT)
 
         return self.sendCommand(command, retry - 1)
 
-    def sensorValue(self, name): 
+    def sensorValue(self, name):
         # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
         #     self.sendCommand(deviceStatus)
 
         values = { 
-            "co2":      self.co2, 
+            "co2":      self.co2,
             "voc":      self.voc,
             "speed":    self.speed,
         }
@@ -150,21 +152,27 @@ class Prana (btle.DefaultDelegate):
     def getStatusDetails(self) -> bool:
         return self.sendCommand(deviceStatus)
 
-    def powerOff(self): 
+    def powerOff(self):
         self.sendCommand(powerOff)
 
-    def toogleAutoMode(self): 
+    def powerOn(self):
+        self.sendCommand(powerOn)
+
+    def toogleAutoMode(self):
         self.sendCommand(autoMode)
     def setAutoMode(self):
         if not self.isAutoMode:
             self.sendCommand(autoMode)
 
-    def toogleAirInOff(self): 
+    def toogleAirInOff(self):
         self.sendCommand(airInOff)
-    def toogleAirOutOff(self): 
+    def toogleAirOutOff(self):
         self.sendCommand(airOutOff)
 
     def setSpeed(self, speed):
+        if not self.isOn:
+            self.powerOn()
+
         up = speedUp
         down = speedDown
         if not self.isAirOutOn:
