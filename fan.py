@@ -4,24 +4,30 @@ from . import prana, DOMAIN, CONF_DEVICES, CONF_NAME, CLIENT, CONFIG, SIGNAL_UPD
 
 from datetime import datetime, timedelta
 import logging
+import math
 from homeassistant.components.fan import (
-    SPEED_HIGH,
-    SPEED_LOW,
-    SPEED_MEDIUM,
-    SPEED_OFF,
     SUPPORT_SET_SPEED,
     SUPPORT_DIRECTION,
+    SUPPORT_PRESET_MODE,
     FanEntity,
 )
 
 from homeassistant.const import STATE_OFF
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import dispatcher_send, async_dispatcher_connect
+from homeassistant.util.percentage import (
+    int_states_in_range,
+    percentage_to_ranged_value,
+    ranged_value_to_percentage,
+)
+
 
 _LOGGER = logging.getLogger(__name__)
 
 SPEED_AUTO = "auto"
-FAN_SPEEDS = [STATE_OFF, SPEED_AUTO, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+SPEED_MANUAL = "manual"
+SPEED_RANGE = (1, 10)
+#FAN_SPEEDS = [STATE_OFF, SPEED_AUTO, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 # SCAN_INTERVAL = timedelta(seconds=60)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -83,49 +89,19 @@ class PranaFan(FanEntity):
         return attributes
 
     @property
-    def speed(self) -> str:
-        """Return the current speed."""
-        speed = self.device.speed
-        if speed == 0:
-            return STATE_OFF
-        else:
-            return str(speed)
-
-    @property
-    def speed_list(self) -> list:
-        """Get the list of available speeds."""
-        return FAN_SPEEDS
-
-    @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SUPPORT_SET_SPEED | SUPPORT_DIRECTION
+        return SUPPORT_SET_SPEED | SUPPORT_DIRECTION | SUPPORT_PRESET_MODE
 
-    def turn_on(self, speed: str = None, **kwargs) -> None:
+    def turn_on(self, speed: str = None, percentage=None, preset_mode=None, **kwargs) -> None:
         """Turn on the entity."""
-        if speed is None:
-            self.device.powerOn()
-        else:
-            self.set_speed(speed)
+        self.device.powerOn()
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
     def turn_off(self, **kwargs) -> None:
         """Turn off the entity."""
-        self.set_speed(SPEED_OFF)
+        self.device.powerOff()
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
-
-    def set_speed(self, speed: str) -> None:
-        """Set the speed of the fan."""
-        if speed == STATE_OFF:
-            self.device.powerOff()
-        elif speed == SPEED_AUTO:
-            self.device.setAutoMode()
-        else:
-            self.device.setSpeed(int(speed))
-        
-        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
-
-
 
     def set_direction(self, direction: str):
         """Set the direction of the fan."""
@@ -141,6 +117,50 @@ class PranaFan(FanEntity):
             self.device.toogleAirInOff()
 
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
+
+    def set_preset_mode(self, preset_mode: str) -> None:
+        """Set the preset mode of the fan."""
+        if preset_mode == SPEED_AUTO:
+            self.device.setAutoMode()
+        else:
+            self.device.toogleAutoMode()
+
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
+
+    @property
+    def preset_modes(self):
+        """Return state of the fan."""
+        return [SPEED_MANUAL, SPEED_AUTO]
+
+    @property
+    def preset_mode(self) -> str:
+        """Return preset mode of the fan."""
+        if self.device.isAutoMode:
+            return SPEED_AUTO
+        else:
+            return SPEED_MANUAL
+
+    @property
+    def percentage(self) -> int:
+        """Return percentage of the fan."""
+        return ranged_value_to_percentage(SPEED_RANGE, self.device.speed)
+
+    def set_percentage(self, percentage: int) -> None:
+        """Set the speed percentage of the fan."""
+        _LOGGER.debug("Changing fan speed percentage to %s", percentage)
+
+        if percentage == 0 or percentage == None:
+            self.device.powerOff()
+        else:
+            speed = math.ceil(percentage_to_ranged_value(SPEED_RANGE, percentage))
+            self.device.setSpeed(speed)
+
+        dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
+
+    @property
+    def speed_count(self) -> int:
+        """Return the number of speeds the fan supports."""
+        return int_states_in_range(SPEED_RANGE)
 
     @property
     def current_direction(self) -> str:
@@ -167,17 +187,5 @@ class PranaFan(FanEntity):
     def _update_callback(self):
         """Call update method."""
         self.async_schedule_update_ha_state(True)
-
-    # @staticmethod
-    # def _int_to_speed(speed: int):
-    #     hex_speed = SPEED_OFF
-    #     if speed > 7:
-    #         hex_speed = SPEED_HIGH
-    #     elif speed > 3:
-    #         hex_speed = SPEED_MEDIUM
-    #     elif speed > 0:
-    #         hex_speed = SPEED_LOW
-    #     return hex_speed
-
 
 
