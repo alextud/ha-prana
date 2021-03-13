@@ -1,0 +1,9 @@
+{
+  "domain": "prana",
+  "name": "Prana",
+  "version": "0.2.0",
+  "documentation": "https://www.home-assistant.io/integrations/prana",
+  "requirements": ["bluepy==1.3.0"],
+  "dependencies": [],
+  "codeowners": ["@alextud"]
+}
