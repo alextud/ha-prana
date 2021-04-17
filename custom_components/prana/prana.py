@@ -94,6 +94,14 @@ class Prana (btle.DefaultDelegate):
         self.lastRead = datetime.now()
 
     def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
+        thread = threading.Thread(target=self.sendCommand_raw, args=(command, retry))
+        thread.start()
+        thread.join(timeout=30)
+        didSucced = (datetime.now() - self.lastRead).total_seconds() < 29
+        _LOGGER.debug("result = %d", didSucced)
+        return didSucced
+
+    def sendCommand_raw(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
         sendSuccess = False
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
@@ -135,7 +143,7 @@ class Prana (btle.DefaultDelegate):
         _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry)
         time.sleep(DEFAULT_RETRY_TIMEOUT)
 
-        return self.sendCommand(command, retry - 1)
+        return self.sendCommand_raw(command, retry - 1)
 
     def sensorValue(self, name):
         # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
