@@ -6,6 +6,7 @@ import time
 import struct
 from datetime import datetime, timedelta
 import threading
+from multiprocessing import Process
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,8 +61,8 @@ class Prana (btle.DefaultDelegate):
         #print (data)
         voc = int(struct.unpack_from(">h", data, 63)[0] & 0b0011_1111_1111_1111)
         co2 = int(struct.unpack_from(">h", data, 61)[0] & 0b0011_1111_1111_1111)
-        if (voc > 10000 or co2 > 10000):
-        	return #ingore invalid data
+        #if (voc > 10000 or co2 > 15000):
+        #	return #ingore invalid data
 
         self.voc = voc
         self.co2 = co2
@@ -93,23 +94,26 @@ class Prana (btle.DefaultDelegate):
         _LOGGER.debug("speed: %d CO2: %d VOC: %d, AUTO_MODE: %d, HEATER: %d, THAW: %d", self.speed, self.co2, self.voc, self.isAutoMode, self.isHeaterOn, self.isThawOn)
         self.lastRead = datetime.now()
 
-    def sendCommand(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
-        thread = threading.Thread(target=self.sendCommand_raw, args=(command, retry))
+    def sendCommand(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
+        thread = threading.Thread(target=self.sendCommand_raw, args=(command, repeat, retry))
         thread.start()
         thread.join(timeout=30)
-        didSucced = (datetime.now() - self.lastRead).total_seconds() < 29
+        if self.lastRead == None:
+            didSucced = False
+        else:
+            didSucced = (datetime.now() - self.lastRead).total_seconds() < 29
         _LOGGER.debug("result = %d", didSucced)
         return didSucced
 
-    def sendCommand_raw(self, command, retry = DEFAULT_RETRY_COUNT) -> bool:
-        sendSuccess = False
+    def sendCommand_raw(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
+        sendSuccess = True
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
         try:
             _LOGGER.debug("Connecting to Prana...",)
             device = btle.Peripheral(self.mac)
             device.setDelegate(self)
-            device.setMTU(200) #increase MTU
+            device.setMTU(220) #increase MTU
 
             service = device.getServiceByUUID(UUID)
             characteristics = service.getCharacteristics(HANDLE)[0]
@@ -120,41 +124,50 @@ class Prana (btle.DefaultDelegate):
             characteristics = characteristics
             _LOGGER.debug("Connected to Prana.")
 
-            writeResult = characteristics.write(binascii.a2b_hex(command), withResponse = True)
-            sendSuccess = writeResult != None
+            while sendSuccess and repeat >= 0:
+                writeResult = characteristics.write(binascii.a2b_hex(command), withResponse = True)
+                sendSuccess = writeResult != None
+                repeat = repeat - 1
+                #_LOGGER.debug("Command writen: %s", sendSuccess)
 
             if command != deviceStatus: # trigger a notifications
-                characteristics.write(binascii.a2b_hex(deviceStatus), withResponse = True)
+                writeResult = characteristics.write(binascii.a2b_hex(deviceStatus), withResponse = True)
+                sendSuccess = writeResult != None
+                #_LOGGER.debug("Notification Command writen: %s", sendSuccess)
 
+
+            _LOGGER.debug("Command sent: %s", sendSuccess)
             device.waitForNotifications(0.6)
             device.disconnect()
 
+            _LOGGER.debug("Disconnected.")
+
         except:
             _LOGGER.debug("Error talking to prana.", exc_info=True)
+            sendSuccess = False
         finally:
-        	pass
+            pass
 
         if sendSuccess:
             return True
         if retry < 1:
-            _LOGGER.error("Prana communication failed. Stopping trying.", exc_info=True)
+            _LOGGER.error("Prana communication failed. Stopping trying.")
             return False
 
         _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry)
         time.sleep(DEFAULT_RETRY_TIMEOUT)
 
-        return self.sendCommand_raw(command, retry - 1)
+        return self.sendCommand_raw(command, 0, retry - 1)
 
     def sensorValue(self, name):
         # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
         #     self.sendCommand(deviceStatus)
 
-        values = { 
+        values = {
             "co2":      self.co2,
             "voc":      self.voc,
             "speed":    self.speed,
         }
-        
         return values.get(name, None)
 
     def getStatusDetails(self) -> bool:
@@ -177,7 +190,10 @@ class Prana (btle.DefaultDelegate):
     def toogleAirOutOff(self):
         self.sendCommand(airOutOff)
 
-    def setSpeed(self, speed):
+    def setSpeed(self, speed, maxStack = 5):
+        if (maxStack < 0): # break any loops on error
+            return
+
         if not self.isOn:
             self.powerOn()
 
@@ -191,13 +207,13 @@ class Prana (btle.DefaultDelegate):
             down = speedOutDown
 
         if speed > self.speed:
-            self.sendCommand(up)
-            self.setSpeed(speed)
+            self.sendCommand(up, speed - self.speed - 1)
+            self.setSpeed(speed, maxStack - 1)
         elif (speed < self.speed):
-            self.sendCommand(down)
-            self.setSpeed(speed)
+            self.sendCommand(down, self.speed - speed - 1)
+            self.setSpeed(speed, maxStack - 1)
         elif speed == self.speed and self.isAutoMode: # disable auto mode
             self.toogleAutoMode()
-            self.setSpeed(speed)
+            self.setSpeed(speed, maxStack - 1)
         elif speed == self.speed and self.isHeaterOn: # disable heater
             self.sendCommand(heater)
