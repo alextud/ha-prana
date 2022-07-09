@@ -1,4 +1,5 @@
-from bluepy import btle
+import asyncio
+from bleak import BleakClient
 
 import binascii
 import logging
@@ -36,7 +37,7 @@ speedOutDown = "BEEF0412"
 thaw         = "BEEF0416"
 autoMode     = "BEEF0418"
 
-class Prana (btle.DefaultDelegate):
+class Prana:
     """Representation of Prana."""
 
     def __init__(self, mac):
@@ -95,52 +96,25 @@ class Prana (btle.DefaultDelegate):
         self.lastRead = datetime.now()
 
     def sendCommand(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
-        thread = threading.Thread(target=self.sendCommand_raw, args=(command, repeat, retry))
-        thread.start()
-        thread.join(timeout=30)
-        if self.lastRead == None:
-            didSucced = False
-        else:
-            didSucced = (datetime.now() - self.lastRead).total_seconds() < 29
-        _LOGGER.debug("result = %d", didSucced)
-        return didSucced
+        asyncio.run(self.sendCommand_raw(command, repeat, retry))
+        return True
 
-    def sendCommand_raw(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
+    async def sendCommand_raw(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
         sendSuccess = True
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
         try:
-            _LOGGER.debug("Connecting to Prana...",)
-            device = btle.Peripheral(self.mac)
-            device.setDelegate(self)
-            device.setMTU(220) #increase MTU
+            async with BleakClient(self.mac) as device:
+                _LOGGER.debug("Connected")
+                await device.start_notify(HANDLE, self.handleNotification)
 
-            service = device.getServiceByUUID(UUID)
-            characteristics = service.getCharacteristics(HANDLE)[0]
-            # print(characteristics.uuid, characteristics.propertiesToString(), characteristics.getHandle())
+                while repeat >= 0:
+                    await device.write_gatt_char(HANDLE, binascii.a2b_hex(command))
+                    repeat = repeat - 1
 
-            desc = characteristics.getDescriptors(forUUID = 0x2902)[0]
-            desc.write(binascii.a2b_hex('0100')) #subscribe to notifications
-            characteristics = characteristics
-            _LOGGER.debug("Connected to Prana.")
-
-            while sendSuccess and repeat >= 0:
-                writeResult = characteristics.write(binascii.a2b_hex(command), withResponse = True)
-                sendSuccess = writeResult != None
-                repeat = repeat - 1
-                #_LOGGER.debug("Command writen: %s", sendSuccess)
-
-            if command != deviceStatus: # trigger a notifications
-                writeResult = characteristics.write(binascii.a2b_hex(deviceStatus), withResponse = True)
-                sendSuccess = writeResult != None
-                #_LOGGER.debug("Notification Command writen: %s", sendSuccess)
-
-
-            _LOGGER.debug("Command sent: %s", sendSuccess)
-            device.waitForNotifications(0.6)
-            device.disconnect()
-
-            _LOGGER.debug("Disconnected.")
+                if command != deviceStatus: # trigger a notifications
+                    await device.write_gatt_char(HANDLE, binascii.a2b_hex(deviceStatus))
+                    await asyncio.sleep(0.7)
 
         except:
             _LOGGER.debug("Error talking to prana.", exc_info=True)
@@ -155,9 +129,9 @@ class Prana (btle.DefaultDelegate):
             return False
 
         _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry)
-        time.sleep(DEFAULT_RETRY_TIMEOUT)
+        await asyncio.sleep(DEFAULT_RETRY_TIMEOUT)
 
-        return self.sendCommand_raw(command, 0, retry - 1)
+        return await self.sendCommand_raw(command, 0, retry - 1)
 
     def sensorValue(self, name):
         # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):

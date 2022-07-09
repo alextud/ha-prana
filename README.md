@@ -20,7 +20,7 @@ sudo hcitool lescan
 2. Copy the files of this repository into this directory.
 3. Add the config to your configuration.yaml file as explained below.
 4. Restart Home Assistant or Hass.io.
-
+5. When running Home Assistant in docker add ```-v /var/run/dbus/:/var/run/dbus/:z``` in order to Forward /var/run/dbus/ from host OS to docker
 
 ## Examples
 ### Basic
