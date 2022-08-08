@@ -93,37 +93,37 @@ class PranaFan(FanEntity):
         """Flag supported features."""
         return SUPPORT_SET_SPEED | SUPPORT_DIRECTION | SUPPORT_PRESET_MODE
 
-    def turn_on(self, speed: str = None, percentage=None, preset_mode=None, **kwargs) -> None:
+    async def async_turn_on(self, speed: str = None, percentage=None, preset_mode=None, **kwargs) -> None:
         """Turn on the entity."""
-        self.device.powerOn()
+        await self.device.powerOn()
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
-    def turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs) -> None:
         """Turn off the entity."""
-        self.device.powerOff()
+        await self.device.powerOff()
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
-    def set_direction(self, direction: str):
+    async def async_set_direction(self, direction: str):
         """Set the direction of the fan."""
         if direction == 'reverse':
             if not self.device.isAirInOn:
-                self.device.toogleAirInOff()
+                await self.device.toogleAirInOff()
 
-            self.device.toogleAirOutOff()
+            await self.device.toogleAirOutOff()
         elif direction == 'forward':
             if not self.device.isAirOutOn:
-                self.device.toogleAirOutOff()
+                await self.device.toogleAirOutOff()
 
-            self.device.toogleAirInOff()
+            await self.device.toogleAirInOff()
 
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
-    def set_preset_mode(self, preset_mode: str) -> None:
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set the preset mode of the fan."""
         if preset_mode == SPEED_AUTO:
-            self.device.setAutoMode()
+            await self.device.setAutoMode()
         else:
-            self.device.toogleAutoMode()
+            await self.device.toogleAutoMode()
 
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 
@@ -145,15 +145,15 @@ class PranaFan(FanEntity):
         """Return percentage of the fan."""
         return ranged_value_to_percentage(SPEED_RANGE, self.device.speed)
 
-    def set_percentage(self, percentage: int) -> None:
+    async def async_set_percentage(self, percentage: int) -> None:
         """Set the speed percentage of the fan."""
         _LOGGER.debug("Changing fan speed percentage to %s", percentage)
 
         if percentage == 0 or percentage == None:
-            self.device.powerOff()
+            await self.device.powerOff()
         else:
             speed = math.ceil(percentage_to_ranged_value(SPEED_RANGE, percentage))
-            self.device.setSpeed(speed)
+            await self.device.setSpeed(speed)
 
         dispatcher_send(self.hass, SIGNAL_UPDATE_PRANA + self.device.mac)
 

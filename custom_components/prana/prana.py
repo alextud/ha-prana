@@ -95,11 +95,7 @@ class Prana:
         _LOGGER.debug("speed: %d CO2: %d VOC: %d, AUTO_MODE: %d, HEATER: %d, THAW: %d", self.speed, self.co2, self.voc, self.isAutoMode, self.isHeaterOn, self.isThawOn)
         self.lastRead = datetime.now()
 
-    def sendCommand(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
-        asyncio.run(self.sendCommand_raw(command, repeat, retry))
-        return True
-
-    async def sendCommand_raw(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
+    async def sendCommand(self, command, repeat = 0, retry = DEFAULT_RETRY_COUNT) -> bool:
         sendSuccess = True
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
@@ -131,7 +127,7 @@ class Prana:
         _LOGGER.debug("Cannot connect to Prana. Retrying (remaining: %d)...", retry)
         await asyncio.sleep(DEFAULT_RETRY_TIMEOUT)
 
-        return await self.sendCommand_raw(command, 0, retry - 1)
+        return await self.sendCommand(command, 0, retry - 1)
 
     def sensorValue(self, name):
         # if (self.lastRead is None) or (datetime.now() - timedelta(seconds=3) > self.lastRead):
@@ -144,32 +140,32 @@ class Prana:
         }
         return values.get(name, None)
 
-    def getStatusDetails(self) -> bool:
-        return self.sendCommand(deviceStatus)
+    async def getStatusDetails(self) -> bool:
+        return await self.sendCommand(deviceStatus)
 
-    def powerOff(self):
-        self.sendCommand(powerOff)
+    async def powerOff(self):
+        await self.sendCommand(powerOff)
 
-    def powerOn(self):
-        self.sendCommand(powerOn)
+    async def powerOn(self):
+        await self.sendCommand(powerOn)
 
-    def toogleAutoMode(self):
-        self.sendCommand(autoMode)
-    def setAutoMode(self):
+    async def toogleAutoMode(self):
+        await self.sendCommand(autoMode)
+    async def setAutoMode(self):
         if not self.isAutoMode:
-            self.sendCommand(autoMode)
+            await self.sendCommand(autoMode)
 
-    def toogleAirInOff(self):
-        self.sendCommand(airInOff)
-    def toogleAirOutOff(self):
-        self.sendCommand(airOutOff)
+    async def toogleAirInOff(self):
+        await self.sendCommand(airInOff)
+    async def toogleAirOutOff(self):
+        await self.sendCommand(airOutOff)
 
-    def setSpeed(self, speed, maxStack = 5):
+    async def setSpeed(self, speed, maxStack = 5):
         if (maxStack < 0): # break any loops on error
             return
 
         if not self.isOn:
-            self.powerOn()
+            await self.powerOn()
 
         up = speedUp
         down = speedDown
@@ -181,13 +177,13 @@ class Prana:
             down = speedOutDown
 
         if speed > self.speed:
-            self.sendCommand(up, speed - self.speed - 1)
-            self.setSpeed(speed, maxStack - 1)
+            await self.sendCommand(up, speed - self.speed - 1)
+            await self.setSpeed(speed, maxStack - 1)
         elif (speed < self.speed):
-            self.sendCommand(down, self.speed - speed - 1)
-            self.setSpeed(speed, maxStack - 1)
+            await self.sendCommand(down, self.speed - speed - 1)
+            await self.setSpeed(speed, maxStack - 1)
         elif speed == self.speed and self.isAutoMode: # disable auto mode
-            self.toogleAutoMode()
-            self.setSpeed(speed, maxStack - 1)
+            await self.toogleAutoMode()
+            await self.setSpeed(speed, maxStack - 1)
         elif speed == self.speed and self.isHeaterOn: # disable heater
-            self.sendCommand(heater)
+            await self.sendCommand(heater)

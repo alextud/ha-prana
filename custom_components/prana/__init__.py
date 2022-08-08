@@ -1,5 +1,6 @@
 """The prana component."""
 
+import asyncio
 from . import prana
 import voluptuous as vol
 import logging
@@ -27,7 +28,7 @@ SIGNAL_UPDATE_PRANA = "prana_update"
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import load_platform, async_load_platform
 from homeassistant.helpers.dispatcher import dispatcher_send
-from homeassistant.helpers.event import track_time_interval, call_later
+from homeassistant.helpers.event import async_track_time_interval, call_later
 from homeassistant.const import (
     CONF_MAC,
     CONF_DEVICES,
@@ -83,26 +84,23 @@ def setup(hass, config):
     for device in prana_data[CONF_DEVICES]:
         prana_client = device[CLIENT]
 
-    def device_update():
+    async def device_update():
         """Update Prana device."""
         for device in prana_data[CONF_DEVICES]:
             prana_client = device[CLIENT]
 
             _LOGGER.debug("Updating Prana device... %s", prana_client.mac)
-            if prana_client.getStatusDetails():
+            if await prana_client.getStatusDetails():
                 _LOGGER.debug("Update success...")
                 dispatcher_send(hass, SIGNAL_UPDATE_PRANA + prana_client.mac)
             else:
                 _LOGGER.debug("Update failed...")
 
+        await asyncio.sleep(scan_interval)
+        await device_update()
+    
     def poll_devices(time):
-        # use threads as sometimes device will hang on disconnect (maybe some issue on bluepy)
-        thread = threading.Thread(name='PranaWorker', target = device_update)
-        thread.daemon = True
-        thread.start()
-        call_later(hass, scan_interval, poll_devices)
-
-    # track_time_interval(hass, device_update, timedelta(seconds=scan_interval))
-    call_later(hass, 0, poll_devices) #trigger update now
+        hass.async_create_task(device_update())
+    call_later(hass, 1, poll_devices) #trigger update now
 
     return True
