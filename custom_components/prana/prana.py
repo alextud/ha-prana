@@ -99,24 +99,25 @@ class Prana:
         sendSuccess = True
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
+        device = BleakClient(self.mac)
         try:
-            async with BleakClient(self.mac) as device:
-                _LOGGER.debug("Connected")
-                await device.start_notify(HANDLE, self.handleNotification)
+            await asyncio.wait_for(device.connect(), timeout=30)
+            _LOGGER.debug("Connected")
+            await device.start_notify(HANDLE, self.handleNotification)
 
-                while repeat >= 0:
-                    await device.write_gatt_char(HANDLE, binascii.a2b_hex(command))
-                    repeat = repeat - 1
+            while repeat >= 0:
+                await device.write_gatt_char(HANDLE, binascii.a2b_hex(command))
+                repeat = repeat - 1
 
-                if command != deviceStatus: # trigger a notifications
-                    await device.write_gatt_char(HANDLE, binascii.a2b_hex(deviceStatus))
-                    await asyncio.sleep(0.7)
+            if command != deviceStatus: # trigger a notifications
+                await device.write_gatt_char(HANDLE, binascii.a2b_hex(deviceStatus))
+                await asyncio.sleep(0.7)
 
         except:
             _LOGGER.debug("Error talking to prana.", exc_info=True)
             sendSuccess = False
         finally:
-            pass
+            await device.disconnect()
 
         if sendSuccess:
             return True
