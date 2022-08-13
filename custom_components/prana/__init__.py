@@ -86,18 +86,18 @@ def setup(hass, config):
 
     async def device_update():
         """Update Prana device."""
-        for device in prana_data[CONF_DEVICES]:
-            prana_client = device[CLIENT]
+        while True:
+            for device in prana_data[CONF_DEVICES]:
+                prana_client = device[CLIENT]
 
-            _LOGGER.debug("Updating Prana device... %s", prana_client.mac)
-            if await prana_client.getStatusDetails():
-                _LOGGER.debug("Update success...")
-                dispatcher_send(hass, SIGNAL_UPDATE_PRANA + prana_client.mac)
-            else:
-                _LOGGER.debug("Update failed...")
+                _LOGGER.debug("Updating Prana device... %s", prana_client.mac)
+                if await prana_client.getStatusDetails():
+                    _LOGGER.debug("Update success...")
+                    dispatcher_send(hass, SIGNAL_UPDATE_PRANA + prana_client.mac)
+                else:
+                    _LOGGER.debug("Update failed...")
 
-        await asyncio.sleep(scan_interval)
-        await device_update()
+            await asyncio.sleep(scan_interval)
     
     def poll_devices(time):
         hass.async_create_task(device_update())
