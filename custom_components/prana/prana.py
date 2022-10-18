@@ -1,5 +1,6 @@
 import asyncio
 from bleak import BleakClient
+from homeassistant.components import bluetooth
 
 import binascii
 import logging
@@ -40,7 +41,8 @@ autoMode     = "BEEF0418"
 class Prana:
     """Representation of Prana."""
 
-    def __init__(self, mac):
+    def __init__(self, hass, mac):
+        self.hass = hass
         self.mac = mac
         self.lastRead = None
         self.speed = None #calculated
@@ -99,7 +101,8 @@ class Prana:
         sendSuccess = True
         _LOGGER.debug("Sending command %s to prana %s", command, self.mac)
 
-        device = BleakClient(self.mac)
+        bleDevice = bluetooth.async_ble_device_from_address(self.hass, self.mac, connectable=True)
+        device = BleakClient(bleDevice)
         try:
             await asyncio.wait_for(device.connect(), timeout=30)
             _LOGGER.debug("Connected")

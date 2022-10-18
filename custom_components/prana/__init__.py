@@ -75,7 +75,7 @@ def setup(hass, config):
         prana_data[CONF_DEVICES].append({})
         device = prana_data[CONF_DEVICES][-1]
         mac = device_conf.get(CONF_MAC)
-        device[CLIENT] = prana.Prana(mac)
+        device[CLIENT] = prana.Prana(hass, mac)
         device[CONFIG] = device_conf
 
     for platform in ["fan", "sensor"]:
