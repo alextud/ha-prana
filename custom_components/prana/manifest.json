@@ -3,7 +3,7 @@
   "name": "Prana",
   "version": "0.2.0",
   "documentation": "https://www.home-assistant.io/integrations/prana",
-  "requirements": ["bleak==0.15.1"],
+  "requirements": ["bleak>=0.15.1"],
   "dependencies": [],
   "codeowners": ["@alextud"]
 }
