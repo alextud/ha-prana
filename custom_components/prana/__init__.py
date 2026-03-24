@@ -60,7 +60,7 @@ CONFIG_SCHEMA = vol.Schema({
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup(hass, config):
+async def async_setup(hass, config):
 
     prana_data = hass.data[DOMAIN] = {}
     prana_data[CONF_DEVICES] = []
@@ -79,10 +79,7 @@ def setup(hass, config):
         device[CONFIG] = device_conf
 
     for platform in ["fan", "sensor"]:
-        load_platform(hass, platform, DOMAIN, {}, conf)
-
-    for device in prana_data[CONF_DEVICES]:
-        prana_client = device[CLIENT]
+        await async_load_platform(hass, platform, DOMAIN, {}, conf)
 
     async def device_update():
         """Update Prana device."""
@@ -98,9 +95,7 @@ def setup(hass, config):
                     _LOGGER.debug("Update failed...")
 
             await asyncio.sleep(scan_interval)
-    
-    def poll_devices(time):
-        hass.async_create_task(device_update())
-    call_later(hass, 1, poll_devices) #trigger update now
+
+    hass.async_create_task(device_update())
 
     return True
